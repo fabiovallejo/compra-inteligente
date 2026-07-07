@@ -44,7 +44,7 @@ pnpm db:generate
 pnpm dev
 ```
 
-La aplicacion queda disponible en `http://localhost:3000`.
+La aplicacion queda disponible en `http://localhost:3000`. PostgreSQL se expone en `localhost:5433` para evitar conflictos con instalaciones locales.
 
 ## Scripts
 

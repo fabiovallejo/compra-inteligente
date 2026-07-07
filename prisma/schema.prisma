@@ -14,12 +14,55 @@ enum Currency {
 
 enum UserRole {
   ADMIN
-  USER
+  ADVISOR
 }
 
 enum RateType {
   EFFECTIVE_ANNUAL
   NOMINAL_ANNUAL
+}
+
+enum CapitalizationFrequency {
+  ANNUAL
+  SEMIANNUAL
+  QUARTERLY
+  BIMONTHLY
+  MONTHLY
+  DAILY_360
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  FINANCED
+  INACTIVE
+}
+
+enum FinancialProductCostType {
+  DEBT_RELIEF_INSURANCE
+  VEHICLE_INSURANCE
+  PERIODIC_COMMISSION
+  ITF
+  OTHER
+}
+
+enum CostCalculationType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum CostCalculationBase {
+  BALANCE
+  VEHICLE_PRICE
+  PAYMENT_AMOUNT
+  FINANCED_AMOUNT
+  FIXED
+}
+
+enum SimulationStatus {
+  DRAFT
+  CALCULATED
+  APPROVED
+  ARCHIVED
 }
 
 enum GracePeriodType {
@@ -34,128 +77,208 @@ enum PaymentPeriodType {
 }
 
 model User {
+  id                String             @id @default(cuid())
+  username          String             @unique
+  passwordHash      String
+  role              UserRole           @default(ADVISOR)
+  active            Boolean            @default(true)
+  sessions          Session[]
+  creditSimulations CreditSimulation[]
+  auditLogs         AuditLog[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([role])
+  @@index([active])
+}
+
+model Session {
   id           String   @id @default(cuid())
-  username     String   @unique
-  passwordHash String
-  role         UserRole @default(USER)
-  isActive     Boolean  @default(true)
+  sessionToken String   @unique
+  userId       String
+  expiresAt    DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Client {
-  id            String   @id @default(cuid())
-  firstName     String
-  lastName      String
-  documentId    String   @unique
-  email         String   @unique
-  phone         String?
-  address       String?
-  occupation    String?
-  monthlyIncome Decimal? @db.Decimal(14, 2)
-  birthDate     DateTime?
-  credits       Credit[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String             @id @default(cuid())
+  dni            String             @unique
+  firstNames     String
+  lastNames      String
+  email          String
+  phone          String?
+  address        String?
+  birthDate      DateTime?
+  occupation     String?
+  monthlyIncome  Decimal            @db.Decimal(18, 8)
+  incomeCurrency Currency
+  simulations    CreditSimulation[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([email])
+  @@index([lastNames, firstNames])
 }
 
 model Vehicle {
-  id        String   @id @default(cuid())
-  brand     String
-  model     String
-  year      Int
-  color     String?
-  type      String?
-  vin       String?  @unique
-  condition String?
-  currency  Currency
-  price     Decimal  @db.Decimal(14, 2)
-  credits   Credit[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String             @id @default(cuid())
+  vin         String             @unique
+  brand       String
+  model       String
+  year        Int
+  color       String?
+  type        String?
+  condition   String?
+  price       Decimal            @db.Decimal(18, 8)
+  currency    Currency
+  status      VehicleStatus      @default(AVAILABLE)
+  simulations CreditSimulation[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([brand, model])
+  @@index([status])
+  @@index([currency])
 }
 
-model FinancialConfiguration {
-  id                     String   @id @default(cuid())
-  rateType               RateType
-  capitalizationPerYear  Int?
-  paymentFrequencyMonths Int      @default(1)
-  annualDiscountRate     Decimal  @db.Decimal(10, 6)
-  defaultBalloonRate     Decimal  @default(0.5) @db.Decimal(10, 6)
-  credits                Credit[]
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+model FinancialProduct {
+  id                         String                 @id @default(cuid())
+  name                       String
+  currency                   Currency
+  defaultDownPaymentRate     Decimal                @db.Decimal(18, 12)
+  defaultResidualValueRate   Decimal                @db.Decimal(18, 12)
+  defaultTermMonths          Int
+  defaultRateType            RateType
+  defaultAnnualRate          Decimal                @db.Decimal(18, 12)
+  capitalization             CapitalizationFrequency?
+  cok                        Decimal                @db.Decimal(18, 12)
+  active                     Boolean                @default(true)
+  costs                      FinancialProductCost[]
+  simulations                CreditSimulation[]
+  createdAt                  DateTime               @default(now())
+  updatedAt                  DateTime               @updatedAt
+
+  @@unique([name, currency])
+  @@index([currency, active])
 }
 
-model Credit {
-  id                       String                 @id @default(cuid())
-  clientId                 String
-  vehicleId                String
-  financialConfigurationId String
-  currency                 Currency
-  vehiclePrice             Decimal                @db.Decimal(14, 2)
-  downPayment              Decimal                @db.Decimal(14, 2)
-  financedAmount           Decimal                @db.Decimal(14, 2)
-  balloonRate              Decimal                @db.Decimal(10, 6)
-  balloonAmount            Decimal                @db.Decimal(14, 2)
-  annualRate               Decimal                @db.Decimal(10, 6)
-  monthlyEffectiveRate     Decimal                @db.Decimal(10, 6)
-  termMonths               Int
-  debtReliefInsuranceRate  Decimal                @db.Decimal(10, 6)
-  vehicleInsuranceRate     Decimal                @db.Decimal(10, 6)
-  periodicCommission       Decimal                @db.Decimal(14, 2)
-  itfRate                  Decimal                @db.Decimal(10, 6)
-  gracePeriods             GracePeriod[]
-  schedule                 PaymentScheduleEntry[]
-  indicators               FinancialIndicators?
-  client                   Client                 @relation(fields: [clientId], references: [id])
-  vehicle                  Vehicle                @relation(fields: [vehicleId], references: [id])
-  financialConfiguration   FinancialConfiguration @relation(fields: [financialConfigurationId], references: [id])
-  createdAt                DateTime               @default(now())
-  updatedAt                DateTime               @updatedAt
+model FinancialProductCost {
+  id              String                   @id @default(cuid())
+  productId       String
+  costType        FinancialProductCostType
+  calculationType CostCalculationType
+  rate            Decimal?                 @db.Decimal(18, 12)
+  fixedAmount     Decimal?                 @db.Decimal(18, 8)
+  calculationBase CostCalculationBase
+  product         FinancialProduct         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  @@unique([productId, costType])
+  @@index([productId])
+  @@index([costType])
+}
+
+model CreditSimulation {
+  id                             String                @id @default(cuid())
+  createdByUserId                String
+  clientId                       String
+  vehicleId                      String
+  financialProductId             String
+  inputSnapshot                  Json
+  calculatedMonthlyEffectiveRate Decimal               @db.Decimal(18, 12)
+  financedAmount                 Decimal               @db.Decimal(18, 8)
+  balloonPayment                 Decimal               @db.Decimal(18, 8)
+  basePayment                    Decimal               @db.Decimal(18, 8)
+  status                         SimulationStatus      @default(CALCULATED)
+  simulatedAt                    DateTime              @default(now())
+  createdAt                      DateTime              @default(now())
+  updatedAt                      DateTime              @updatedAt
+  createdByUser                  User                  @relation(fields: [createdByUserId], references: [id])
+  client                         Client                @relation(fields: [clientId], references: [id])
+  vehicle                        Vehicle               @relation(fields: [vehicleId], references: [id])
+  financialProduct               FinancialProduct      @relation(fields: [financialProductId], references: [id])
+  gracePeriods                   GracePeriod[]
+  paymentScheduleItems           PaymentScheduleItem[]
+  financialIndicator             FinancialIndicator?
+
+  @@index([createdByUserId])
+  @@index([clientId])
+  @@index([vehicleId])
+  @@index([financialProductId])
+  @@index([status])
+  @@index([simulatedAt])
 }
 
 model GracePeriod {
-  id          String          @id @default(cuid())
-  creditId    String
-  type        GracePeriodType
-  startPeriod Int
-  endPeriod   Int
-  credit      Credit          @relation(fields: [creditId], references: [id], onDelete: Cascade)
+  id           String           @id @default(cuid())
+  simulationId String
+  type         GracePeriodType
+  periodFrom   Int
+  periodTo     Int
+  simulation   CreditSimulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  createdAt    DateTime         @default(now())
+
+  @@index([simulationId])
+  @@unique([simulationId, periodFrom, periodTo])
 }
 
-model PaymentScheduleEntry {
+model PaymentScheduleItem {
   id                    String            @id @default(cuid())
-  creditId              String
+  simulationId          String
   periodNumber          Int
-  dueDate               DateTime?
   periodType            PaymentPeriodType
-  openingBalance        Decimal           @db.Decimal(14, 2)
-  interest              Decimal           @db.Decimal(14, 2)
-  basePayment           Decimal           @db.Decimal(14, 2)
-  amortization          Decimal           @db.Decimal(14, 2)
-  balloonPayment        Decimal           @db.Decimal(14, 2)
-  debtReliefInsurance   Decimal           @db.Decimal(14, 2)
-  vehicleInsurance      Decimal           @db.Decimal(14, 2)
-  commission            Decimal           @db.Decimal(14, 2)
-  itf                   Decimal           @db.Decimal(14, 2)
-  totalPayment          Decimal           @db.Decimal(14, 2)
-  closingBalance        Decimal           @db.Decimal(14, 2)
-  debtorCashFlow        Decimal           @db.Decimal(14, 2)
-  credit                Credit            @relation(fields: [creditId], references: [id], onDelete: Cascade)
+  openingBalance        Decimal           @db.Decimal(18, 8)
+  interest              Decimal           @db.Decimal(18, 8)
+  basePayment           Decimal           @db.Decimal(18, 8)
+  amortization          Decimal           @db.Decimal(18, 8)
+  debtReliefInsurance   Decimal           @db.Decimal(18, 8)
+  vehicleInsurance      Decimal           @db.Decimal(18, 8)
+  commission            Decimal           @db.Decimal(18, 8)
+  itf                   Decimal           @db.Decimal(18, 8)
+  balloonPayment        Decimal           @db.Decimal(18, 8)
+  totalPayment          Decimal           @db.Decimal(18, 8)
+  closingBalance        Decimal           @db.Decimal(18, 8)
+  debtorCashFlow        Decimal           @db.Decimal(18, 8)
+  simulation            CreditSimulation  @relation(fields: [simulationId], references: [id], onDelete: Cascade)
 
-  @@unique([creditId, periodNumber])
+  @@unique([simulationId, periodNumber])
+  @@index([simulationId])
+  @@index([periodType])
 }
 
-model FinancialIndicators {
-  id             String   @id @default(cuid())
-  creditId       String   @unique
-  netPresentValue Decimal  @db.Decimal(14, 2)
-  monthlyIrr      Decimal  @db.Decimal(10, 6)
-  annualIrr       Decimal  @db.Decimal(10, 6)
-  tcea            Decimal  @db.Decimal(10, 6)
-  totalInterest   Decimal  @db.Decimal(14, 2)
-  totalCost       Decimal  @db.Decimal(14, 2)
-  credit          Credit   @relation(fields: [creditId], references: [id], onDelete: Cascade)
-  createdAt       DateTime @default(now())
+model FinancialIndicator {
+  id              String           @id @default(cuid())
+  simulationId    String           @unique
+  netPresentValue Decimal          @db.Decimal(18, 8)
+  monthlyIrr      Decimal          @db.Decimal(18, 12)
+  annualIrr       Decimal          @db.Decimal(18, 12)
+  tcea            Decimal          @db.Decimal(18, 12)
+  totalInterest   Decimal          @db.Decimal(18, 8)
+  totalCharges    Decimal          @db.Decimal(18, 8)
+  totalPaid       Decimal          @db.Decimal(18, 8)
+  simulation      CreditSimulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  createdAt       DateTime         @default(now())
+
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  entity    String
+  recordId  String
+  detail    Json?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([entity, recordId])
+  @@index([createdAt])
 }
