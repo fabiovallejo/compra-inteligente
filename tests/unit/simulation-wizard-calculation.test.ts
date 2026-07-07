@@ -65,6 +65,21 @@ describe("simulation wizard calculation scenarios", () => {
     expect(result.monthlyEffectiveRate.mul(100).toNumber()).toBeCloseTo(1, 10);
   });
 
+  it("rejects invalid down payment and residual percentages", () => {
+    const invalid = simulationSchema.safeParse({
+      ...baseSimulation,
+      downPaymentRate: "100",
+      residualValueRate: "0",
+    });
+
+    expect(invalid.success).toBe(false);
+    if (!invalid.success) {
+      const errors = invalid.error.flatten().fieldErrors;
+      expect(errors.downPaymentRate?.at(0)).toContain("menor que 100");
+      expect(errors.residualValueRate?.at(0)).toContain("mayor que cero");
+    }
+  });
+
   it("supports total grace", () => {
     const result = calculate({
       ...baseSimulation,

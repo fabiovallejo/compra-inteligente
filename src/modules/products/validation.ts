@@ -1,17 +1,9 @@
 import { z } from "zod";
-import { isPositiveDecimal } from "@/modules/shared/decimal";
-
-const nonNegativeDecimal = (value: string) => {
-  if (value.trim() === "") {
-    return false;
-  }
-
-  try {
-    return Number(value) >= 0;
-  } catch {
-    return false;
-  }
-};
+import {
+  isNonNegativeDecimal,
+  isPercentageAboveZeroBelowHundred,
+  isPercentageAtLeastZeroBelowHundred,
+} from "@/modules/shared/decimal";
 
 export const productSchema = z
   .object({
@@ -20,11 +12,17 @@ export const productSchema = z
     defaultDownPaymentRate: z
       .string()
       .trim()
-      .refine(nonNegativeDecimal, "La cuota inicial debe ser cero o mayor."),
+      .refine(
+        isPercentageAtLeastZeroBelowHundred,
+        "La cuota inicial debe ser mayor o igual a cero y menor que 100.",
+      ),
     defaultResidualValueRate: z
       .string()
       .trim()
-      .refine(nonNegativeDecimal, "El valor residual debe ser cero o mayor."),
+      .refine(
+        isPercentageAboveZeroBelowHundred,
+        "El valor residual debe ser mayor que cero y menor que 100.",
+      ),
     defaultTermMonths: z.coerce
       .number({ error: "Ingresa un plazo valido." })
       .int("El plazo debe ser entero.")
@@ -35,25 +33,25 @@ export const productSchema = z
     defaultAnnualRate: z
       .string()
       .trim()
-      .refine(nonNegativeDecimal, "La tasa debe ser cero o mayor."),
+      .refine(isNonNegativeDecimal, "La tasa debe ser cero o mayor."),
     capitalization: z
       .enum(["ANNUAL", "SEMIANNUAL", "QUARTERLY", "BIMONTHLY", "MONTHLY", "DAILY_360"])
       .optional()
       .or(z.literal("")),
-    cok: z.string().trim().refine(nonNegativeDecimal, "El COK debe ser cero o mayor."),
+    cok: z.string().trim().refine(isNonNegativeDecimal, "El COK debe ser cero o mayor."),
     debtReliefInsuranceRate: z
       .string()
       .trim()
-      .refine(nonNegativeDecimal, "El seguro de desgravamen debe ser cero o mayor."),
+      .refine(isNonNegativeDecimal, "El seguro de desgravamen debe ser cero o mayor."),
     vehicleInsuranceRate: z
       .string()
       .trim()
-      .refine(nonNegativeDecimal, "El seguro vehicular debe ser cero o mayor."),
+      .refine(isNonNegativeDecimal, "El seguro vehicular debe ser cero o mayor."),
     periodicCommission: z
       .string()
       .trim()
-      .refine(nonNegativeDecimal, "La comision debe ser cero o mayor."),
-    itfRate: z.string().trim().refine(nonNegativeDecimal, "El ITF debe ser cero o mayor."),
+      .refine(isNonNegativeDecimal, "La comision debe ser cero o mayor."),
+    itfRate: z.string().trim().refine(isNonNegativeDecimal, "El ITF debe ser cero o mayor."),
   })
   .refine(
     (data) =>
@@ -87,5 +85,3 @@ export function productFormDataToObject(formData: FormData) {
     itfRate: String(formData.get("itfRate") ?? ""),
   };
 }
-
-export { isPositiveDecimal };

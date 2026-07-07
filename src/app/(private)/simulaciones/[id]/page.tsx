@@ -98,9 +98,19 @@ export default async function SimulationDetailPage({
         className="flex flex-col gap-3 rounded-md border border-[#d6d3c8] bg-white p-4 sm:flex-row sm:items-center"
       >
         <input name="id" type="hidden" value={simulation.id} />
-        <label className="text-sm font-semibold" htmlFor="status">
-          Estado de la simulacion
-        </label>
+        <div className="flex items-center gap-3">
+          <label className="text-sm font-semibold" htmlFor="status">
+            Estado de la simulacion
+          </label>
+          <button
+            aria-label="Ayuda para Estado de la simulacion"
+            className="flex size-7 items-center justify-center rounded-full border border-[#c9c7bd] text-xs font-bold text-[#2f6f65]"
+            title="Permite clasificar la simulacion como borrador, calculada, aprobada o archivada."
+            type="button"
+          >
+            i
+          </button>
+        </div>
         <select
           className="h-10 rounded-md border border-[#c9c7bd] px-3 text-sm"
           defaultValue={simulation.status}

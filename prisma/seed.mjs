@@ -197,6 +197,84 @@ async function main() {
     });
   }
 
+  const usdProduct = await prisma.financialProduct.upsert({
+    where: {
+      name_currency: {
+        name: "Compra Inteligente Vehicular USD",
+        currency: Currency.USD,
+      },
+    },
+    update: {
+      active: true,
+      defaultDownPaymentRate: "20.000000000000",
+      defaultResidualValueRate: "45.000000000000",
+      defaultTermMonths: 24,
+      defaultRateType: RateType.EFFECTIVE_ANNUAL,
+      defaultAnnualRate: "12.000000000000",
+      capitalization: CapitalizationFrequency.MONTHLY,
+      cok: "9.000000000000",
+    },
+    create: {
+      name: "Compra Inteligente Vehicular USD",
+      currency: Currency.USD,
+      defaultDownPaymentRate: "20.000000000000",
+      defaultResidualValueRate: "45.000000000000",
+      defaultTermMonths: 24,
+      defaultRateType: RateType.EFFECTIVE_ANNUAL,
+      defaultAnnualRate: "12.000000000000",
+      capitalization: CapitalizationFrequency.MONTHLY,
+      cok: "9.000000000000",
+      active: true,
+    },
+  });
+
+  const usdCosts = [
+    {
+      costType: FinancialProductCostType.DEBT_RELIEF_INSURANCE,
+      calculationType: CostCalculationType.PERCENTAGE,
+      rate: "0.040000000000",
+      fixedAmount: null,
+      calculationBase: CostCalculationBase.BALANCE,
+    },
+    {
+      costType: FinancialProductCostType.VEHICLE_INSURANCE,
+      calculationType: CostCalculationType.PERCENTAGE,
+      rate: "0.070000000000",
+      fixedAmount: null,
+      calculationBase: CostCalculationBase.VEHICLE_PRICE,
+    },
+    {
+      costType: FinancialProductCostType.PERIODIC_COMMISSION,
+      calculationType: CostCalculationType.FIXED_AMOUNT,
+      rate: null,
+      fixedAmount: "3.00000000",
+      calculationBase: CostCalculationBase.FIXED,
+    },
+    {
+      costType: FinancialProductCostType.ITF,
+      calculationType: CostCalculationType.PERCENTAGE,
+      rate: "0.005000000000",
+      fixedAmount: null,
+      calculationBase: CostCalculationBase.PAYMENT_AMOUNT,
+    },
+  ];
+
+  for (const cost of usdCosts) {
+    await prisma.financialProductCost.upsert({
+      where: {
+        productId_costType: {
+          productId: usdProduct.id,
+          costType: cost.costType,
+        },
+      },
+      update: cost,
+      create: {
+        productId: usdProduct.id,
+        ...cost,
+      },
+    });
+  }
+
   await prisma.auditLog.create({
     data: {
       userId: admin.id,
@@ -205,7 +283,7 @@ async function main() {
       recordId: "seed",
       detail: {
         users: ["admin", "asesor"],
-        product: product.name,
+        products: [product.name, usdProduct.name],
       },
     },
   });

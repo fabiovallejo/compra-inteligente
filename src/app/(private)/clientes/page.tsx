@@ -54,13 +54,29 @@ export default async function ClientsPage({
         </Link>
       </div>
 
-      <form className="flex flex-col gap-3 rounded-md border border-[#d6d3c8] bg-white p-4 sm:flex-row">
-        <input
-          className="h-10 flex-1 rounded-md border border-[#c9c7bd] px-3 text-sm outline-none focus:border-[#2f6f65] focus:ring-2 focus:ring-[#2f6f65]/20"
-          defaultValue={query}
-          name="q"
-          placeholder="Buscar por DNI, nombre o correo"
-        />
+      <form className="flex flex-col gap-3 rounded-md border border-[#d6d3c8] bg-white p-4 sm:flex-row sm:items-end">
+        <div className="flex flex-1 flex-col gap-2">
+          <div className="flex items-center justify-between gap-3">
+            <label className="text-sm font-semibold" htmlFor="q">
+              Buscar clientes
+            </label>
+            <button
+              aria-label="Ayuda para buscar clientes"
+              className="flex size-7 items-center justify-center rounded-full border border-[#c9c7bd] text-xs font-bold text-[#2f6f65]"
+              title="Filtra por DNI, nombres, apellidos o correo del cliente."
+              type="button"
+            >
+              i
+            </button>
+          </div>
+          <input
+            className="h-10 rounded-md border border-[#c9c7bd] px-3 text-sm outline-none focus:border-[#2f6f65] focus:ring-2 focus:ring-[#2f6f65]/20"
+            defaultValue={query}
+            id="q"
+            name="q"
+            placeholder="Buscar por DNI, nombre o correo"
+          />
+        </div>
         <button
           className="h-10 rounded-md border border-[#1f5f57] px-4 text-sm font-semibold text-[#1f5f57]"
           type="submit"

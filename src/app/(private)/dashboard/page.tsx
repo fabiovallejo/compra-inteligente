@@ -1,21 +1,22 @@
+import Decimal from "decimal.js";
 import { prisma } from "@/lib/prisma";
+import { formatMoney } from "@/modules/simulations/format";
+import { simulationSchema } from "@/modules/simulations/validation";
 
 export const dynamic = "force-dynamic";
 
-const currencyFormatter = new Intl.NumberFormat("es-PE", {
-  style: "currency",
-  currency: "PEN",
-  maximumFractionDigits: 2,
-});
-
 export default async function DashboardPage() {
-  const [clientCount, vehicleCount, simulationCount, financed, latest] =
+  const [clientCount, vehicleCount, simulationCount, simulations, latest] =
     await Promise.all([
       prisma.client.count(),
       prisma.vehicle.count(),
       prisma.creditSimulation.count(),
-      prisma.creditSimulation.aggregate({
-        _sum: { financedAmount: true },
+      prisma.creditSimulation.findMany({
+        select: {
+          financedAmount: true,
+          inputSnapshot: true,
+          financialProduct: { select: { currency: true } },
+        },
       }),
       prisma.creditSimulation.findMany({
         orderBy: { simulatedAt: "desc" },
@@ -27,11 +28,24 @@ export default async function DashboardPage() {
           vehicle: {
             select: { brand: true, model: true },
           },
+          financialProduct: { select: { currency: true } },
         },
       }),
     ]);
 
-  const totalFinanced = Number(financed._sum.financedAmount ?? 0);
+  const totals = simulations.reduce(
+    (accumulator, simulation) => {
+      const currency = simulationCurrency(
+        simulation.inputSnapshot,
+        simulation.financialProduct.currency,
+      );
+      accumulator[currency] = accumulator[currency].plus(
+        simulation.financedAmount,
+      );
+      return accumulator;
+    },
+    { PEN: new Decimal(0), USD: new Decimal(0) },
+  );
 
   return (
     <section className="mx-auto flex max-w-7xl flex-col gap-7">
@@ -47,8 +61,12 @@ export default async function DashboardPage() {
         <MetricCard label="Vehiculos" value={vehicleCount.toString()} />
         <MetricCard label="Simulaciones" value={simulationCount.toString()} />
         <MetricCard
-          label="Monto total financiado"
-          value={currencyFormatter.format(totalFinanced)}
+          label="Financiado PEN"
+          value={formatMoney(totals.PEN, "PEN")}
+        />
+        <MetricCard
+          label="Financiado USD"
+          value={formatMoney(totals.USD, "USD")}
         />
       </div>
 
@@ -88,8 +106,12 @@ export default async function DashboardPage() {
                       {simulation.vehicle.brand} {simulation.vehicle.model}
                     </td>
                     <td className="px-5 py-4">
-                      {currencyFormatter.format(
-                        Number(simulation.financedAmount),
+                      {formatMoney(
+                        simulation.financedAmount,
+                        simulationCurrency(
+                          simulation.inputSnapshot,
+                          simulation.financialProduct.currency,
+                        ),
                       )}
                     </td>
                     <td className="px-5 py-4">{simulation.status}</td>
@@ -105,6 +127,15 @@ export default async function DashboardPage() {
       </div>
     </section>
   );
+}
+
+function simulationCurrency(
+  snapshot: unknown,
+  fallback: "PEN" | "USD",
+): "PEN" | "USD" {
+  const parsed = simulationSchema.safeParse(snapshot);
+
+  return parsed.success ? parsed.data.currency : fallback;
 }
 
 function MetricCard({ label, value }: { label: string; value: string }) {

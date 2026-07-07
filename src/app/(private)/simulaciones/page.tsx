@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Prisma, SimulationStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { simulationStatusLabel } from "@/modules/simulations/format";
+import { simulationSchema } from "@/modules/simulations/validation";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export default async function SimulationsPage({
       ? { status: params.status }
       : {}),
     ...(params.currency === "PEN" || params.currency === "USD"
-      ? { financialProduct: { currency: params.currency } }
+      ? { inputSnapshot: { path: ["currency"], equals: params.currency } }
       : {}),
     ...(params.from || params.to
       ? {
@@ -77,37 +78,73 @@ export default async function SimulationsPage({
       </div>
 
       <form className="grid gap-3 rounded-md border border-[#d6d3c8] bg-white p-4 md:grid-cols-3 xl:grid-cols-6">
-        <select className="h-10 rounded-md border border-[#c9c7bd] px-3 text-sm" defaultValue={params.clientId ?? ""} name="clientId">
-          <option value="">Todos los clientes</option>
-          {clients.map((client) => (
-            <option key={client.id} value={client.id}>
-              {client.dni} - {client.firstNames} {client.lastNames}
-            </option>
-          ))}
-        </select>
-        <select className="h-10 rounded-md border border-[#c9c7bd] px-3 text-sm" defaultValue={params.vehicleId ?? ""} name="vehicleId">
-          <option value="">Todos los vehiculos</option>
-          {vehicles.map((vehicle) => (
-            <option key={vehicle.id} value={vehicle.id}>
-              {vehicle.vin} - {vehicle.brand} {vehicle.model}
-            </option>
-          ))}
-        </select>
-        <select className="h-10 rounded-md border border-[#c9c7bd] px-3 text-sm" defaultValue={params.currency ?? ""} name="currency">
-          <option value="">Todas las monedas</option>
-          <option value="PEN">PEN</option>
-          <option value="USD">USD</option>
-        </select>
-        <select className="h-10 rounded-md border border-[#c9c7bd] px-3 text-sm" defaultValue={params.status ?? ""} name="status">
-          <option value="">Todos los estados</option>
-          <option value="BORRADOR">Borrador</option>
-          <option value="CALCULADA">Calculada</option>
-          <option value="APROBADA">Aprobada</option>
-          <option value="ARCHIVADA">Archivada</option>
-        </select>
-        <input className="h-10 rounded-md border border-[#c9c7bd] px-3 text-sm" defaultValue={params.from ?? ""} name="from" placeholder="Desde" type="date" />
-        <div className="flex gap-2">
-          <input className="h-10 min-w-0 rounded-md border border-[#c9c7bd] px-3 text-sm" defaultValue={params.to ?? ""} name="to" placeholder="Hasta" type="date" />
+        <FilterField
+          help="Restringe el listado a simulaciones de un cliente especifico."
+          label="Cliente"
+          name="clientId"
+        >
+          <select className="h-10 rounded-md border border-[#c9c7bd] px-3 text-sm" defaultValue={params.clientId ?? ""} id="clientId" name="clientId">
+            <option value="">Todos los clientes</option>
+            {clients.map((client) => (
+              <option key={client.id} value={client.id}>
+                {client.dni} - {client.firstNames} {client.lastNames}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+        <FilterField
+          help="Restringe el listado a simulaciones de un vehiculo especifico."
+          label="Vehiculo"
+          name="vehicleId"
+        >
+          <select className="h-10 rounded-md border border-[#c9c7bd] px-3 text-sm" defaultValue={params.vehicleId ?? ""} id="vehicleId" name="vehicleId">
+            <option value="">Todos los vehiculos</option>
+            {vehicles.map((vehicle) => (
+              <option key={vehicle.id} value={vehicle.id}>
+                {vehicle.vin} - {vehicle.brand} {vehicle.model}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+        <FilterField
+          help="Filtra por la moneda real guardada en la simulacion."
+          label="Moneda"
+          name="currency"
+        >
+          <select className="h-10 rounded-md border border-[#c9c7bd] px-3 text-sm" defaultValue={params.currency ?? ""} id="currency" name="currency">
+            <option value="">Todas las monedas</option>
+            <option value="PEN">PEN</option>
+            <option value="USD">USD</option>
+          </select>
+        </FilterField>
+        <FilterField
+          help="Filtra por estado operativo de la simulacion."
+          label="Estado"
+          name="status"
+        >
+          <select className="h-10 rounded-md border border-[#c9c7bd] px-3 text-sm" defaultValue={params.status ?? ""} id="status" name="status">
+            <option value="">Todos los estados</option>
+            <option value="BORRADOR">Borrador</option>
+            <option value="CALCULADA">Calculada</option>
+            <option value="APROBADA">Aprobada</option>
+            <option value="ARCHIVADA">Archivada</option>
+          </select>
+        </FilterField>
+        <FilterField
+          help="Fecha inicial de simulacion a incluir en la busqueda."
+          label="Desde"
+          name="from"
+        >
+          <input className="h-10 rounded-md border border-[#c9c7bd] px-3 text-sm" defaultValue={params.from ?? ""} id="from" name="from" type="date" />
+        </FilterField>
+        <div className="flex items-end gap-2">
+          <FilterField
+            help="Fecha final de simulacion a incluir en la busqueda."
+            label="Hasta"
+            name="to"
+          >
+            <input className="h-10 min-w-0 rounded-md border border-[#c9c7bd] px-3 text-sm" defaultValue={params.to ?? ""} id="to" name="to" type="date" />
+          </FilterField>
           <button className="h-10 rounded-md bg-[#1f5f57] px-4 text-sm font-semibold text-white" type="submit">Filtrar</button>
         </div>
       </form>
@@ -149,7 +186,10 @@ export default async function SimulationsPage({
                       {simulation.financialProduct.name}
                     </td>
                     <td className="px-5 py-4">
-                      {simulation.financialProduct.currency}{" "}
+                      {simulationCurrency(
+                        simulation.inputSnapshot,
+                        simulation.financialProduct.currency,
+                      )}{" "}
                       {simulation.financedAmount.toString()}
                     </td>
                     <td className="px-5 py-4">
@@ -190,4 +230,44 @@ export default async function SimulationsPage({
 
 function isSimulationStatus(value: string): value is SimulationStatus {
   return ["BORRADOR", "CALCULADA", "APROBADA", "ARCHIVADA"].includes(value);
+}
+
+function FilterField({
+  children,
+  help,
+  label,
+  name,
+}: {
+  children: React.ReactNode;
+  help: string;
+  label: string;
+  name: string;
+}) {
+  return (
+    <div className="flex min-w-0 flex-col gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <label className="text-sm font-semibold" htmlFor={name}>
+          {label}
+        </label>
+        <button
+          aria-label={`Ayuda para ${label}`}
+          className="flex size-7 items-center justify-center rounded-full border border-[#c9c7bd] text-xs font-bold text-[#2f6f65]"
+          title={help}
+          type="button"
+        >
+          i
+        </button>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function simulationCurrency(
+  snapshot: Prisma.JsonValue,
+  fallback: "PEN" | "USD",
+): "PEN" | "USD" {
+  const parsed = simulationSchema.safeParse(snapshot);
+
+  return parsed.success ? parsed.data.currency : fallback;
 }

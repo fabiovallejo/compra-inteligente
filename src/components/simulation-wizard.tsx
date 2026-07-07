@@ -104,7 +104,9 @@ export function SimulationWizard({
   const [form, setForm] = useState<WizardForm>(() => {
     const client = clients[0];
     const vehicle = vehicles[0];
-    const product = products[0];
+    const product =
+      products.find((item) => item.currency === vehicle?.currency) ??
+      products[0];
 
     return {
       clientId: client?.id ?? "",
@@ -150,10 +152,12 @@ export function SimulationWizard({
 
   function selectVehicle(vehicleId: string) {
     const vehicle = vehicles.find((item) => item.id === vehicleId);
+    const product = products.find((item) => item.currency === vehicle?.currency);
     patch({
       vehicleId,
       vehiclePrice: vehicle?.price ?? form.vehiclePrice,
       currency: vehicle?.currency ?? form.currency,
+      ...(product ? productDefaults(product) : {}),
     });
   }
 
@@ -165,19 +169,7 @@ export function SimulationWizard({
     }
 
     patch({
-      financialProductId: productId,
-      currency: product.currency,
-      downPaymentRate: product.downPaymentRate,
-      residualValueRate: product.residualValueRate,
-      termMonths: String(product.termMonths),
-      rateType: product.rateType,
-      annualRate: product.annualRate,
-      capitalizationFrequency: product.capitalization || "MONTHLY",
-      annualDiscountRate: product.cok,
-      debtReliefInsuranceMonthlyRate: product.debtReliefInsuranceRate,
-      vehicleInsuranceMonthlyRate: product.vehicleInsuranceRate,
-      periodicCommission: product.periodicCommission,
-      itfRate: product.itfRate,
+      ...productDefaults(product),
     });
   }
 
@@ -279,7 +271,14 @@ export function SimulationWizard({
               help="Moneda de la simulacion."
               label="Moneda"
               name="currency"
-              onChange={(value) => patch({ currency: value as "PEN" | "USD" })}
+              onChange={(value) => {
+                const currency = value as "PEN" | "USD";
+                const product = products.find((item) => item.currency === currency);
+                patch({
+                  currency,
+                  ...(product ? productDefaults(product) : {}),
+                });
+              }}
               value={form.currency}
             >
               <option value="PEN">PEN</option>
@@ -600,6 +599,24 @@ export function SimulationWizard({
       ) : null}
     </div>
   );
+}
+
+function productDefaults(product: SimulationProductOption): Partial<WizardForm> {
+  return {
+    financialProductId: product.id,
+    currency: product.currency,
+    downPaymentRate: product.downPaymentRate,
+    residualValueRate: product.residualValueRate,
+    termMonths: String(product.termMonths),
+    rateType: product.rateType,
+    annualRate: product.annualRate,
+    capitalizationFrequency: product.capitalization || "MONTHLY",
+    annualDiscountRate: product.cok,
+    debtReliefInsuranceMonthlyRate: product.debtReliefInsuranceRate,
+    vehicleInsuranceMonthlyRate: product.vehicleInsuranceRate,
+    periodicCommission: product.periodicCommission,
+    itfRate: product.itfRate,
+  };
 }
 
 function parseWizardForm(form: WizardForm) {

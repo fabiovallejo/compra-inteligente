@@ -27,7 +27,7 @@ const scheduleHeaders = [
 ];
 
 export function simulationToCsv(simulation: SimulationExport) {
-  const currency = simulation.financialProduct.currency;
+  const currency = simulationCurrency(simulation);
   const rows = [
     ["Simulacion", simulation.id],
     [
@@ -72,7 +72,7 @@ export function simulationToCsv(simulation: SimulationExport) {
 }
 
 export function simulationToPdf(simulation: SimulationExport) {
-  const currency = simulation.financialProduct.currency;
+  const currency = simulationCurrency(simulation);
   const lines = [
     "Compra Inteligente - Cronograma",
     `Simulacion: ${simulation.id}`,
@@ -102,6 +102,21 @@ export function simulationToPdf(simulation: SimulationExport) {
 function csvCell(value: unknown) {
   const text = value?.toString() ?? "";
   return `"${text.replace(/"/g, '""')}"`;
+}
+
+function simulationCurrency(simulation: SimulationExport): "PEN" | "USD" {
+  const snapshot = simulation.inputSnapshot;
+
+  if (
+    snapshot &&
+    typeof snapshot === "object" &&
+    "currency" in snapshot &&
+    (snapshot.currency === "PEN" || snapshot.currency === "USD")
+  ) {
+    return snapshot.currency;
+  }
+
+  return simulation.financialProduct.currency;
 }
 
 function buildSimplePdf(lines: string[]) {

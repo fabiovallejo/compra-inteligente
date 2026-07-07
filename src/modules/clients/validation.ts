@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { isPositiveDecimal } from "@/modules/shared/decimal";
 
-const phoneRegex = /^[0-9+()\-\s]{7,20}$/;
+const nameRegex = /^[\p{L}\s]+$/u;
+const phoneRegex = /^[0-9+()\-\s]{9,20}$/;
 
 const optionalText = z
   .string()
@@ -14,8 +15,18 @@ export const clientSchema = z.object({
     .string()
     .trim()
     .regex(/^\d{8}$/, "El DNI debe tener exactamente 8 digitos."),
-  firstNames: z.string().trim().min(1, "Ingresa los nombres."),
-  lastNames: z.string().trim().min(1, "Ingresa los apellidos."),
+  firstNames: z
+    .string()
+    .trim()
+    .min(1, "Ingresa los nombres.")
+    .max(100, "Los nombres no deben superar 100 caracteres.")
+    .regex(nameRegex, "Los nombres solo pueden contener letras y espacios."),
+  lastNames: z
+    .string()
+    .trim()
+    .min(1, "Ingresa los apellidos.")
+    .max(100, "Los apellidos no deben superar 100 caracteres.")
+    .regex(nameRegex, "Los apellidos solo pueden contener letras y espacios."),
   email: z.string().trim().email("Ingresa un correo valido."),
   phone: z
     .string()

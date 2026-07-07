@@ -23,10 +23,10 @@ describe("client validation", () => {
   it("rejects invalid DNI, email, phone and income", () => {
     const parsed = clientSchema.safeParse({
       dni: "123",
-      firstNames: "Mariana",
+      firstNames: "Mariana1",
       lastNames: "Torres",
       email: "correo-invalido",
-      phone: "12",
+      phone: "12345678",
       monthlyIncome: "0",
       incomeCurrency: "PEN",
     });
@@ -35,6 +35,7 @@ describe("client validation", () => {
     if (!parsed.success) {
       const errors = parsed.error.flatten().fieldErrors;
       expect(errors.dni?.at(0)).toContain("8 digitos");
+      expect(errors.firstNames?.at(0)).toContain("letras y espacios");
       expect(errors.email?.at(0)).toContain("correo valido");
       expect(errors.phone?.at(0)).toContain("telefono valido");
       expect(errors.monthlyIncome?.at(0)).toContain("mayor que cero");

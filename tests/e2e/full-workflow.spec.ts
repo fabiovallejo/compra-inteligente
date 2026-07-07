@@ -15,13 +15,13 @@ test("complete Compra Inteligente workflow", async ({ page }) => {
   await page.goto("/clientes/nuevo");
   await page.getByRole("textbox", { name: "DNI" }).fill(dni);
   await page.getByRole("textbox", { name: "Correo" }).fill(`e2e-${suffix}@example.com`);
-  await page.getByRole("textbox", { name: "Nombres" }).fill("E2E Cliente");
+  await page.getByRole("textbox", { name: "Nombres" }).fill("Cliente Prueba");
   await page.getByRole("textbox", { name: "Apellidos" }).fill("Compra Inteligente");
   await page.getByRole("textbox", { name: "Telefono" }).fill("999888777");
   await page.getByRole("textbox", { name: "Ingreso mensual" }).fill("9000");
   await page.getByRole("combobox", { name: "Moneda del ingreso" }).selectOption("PEN");
   await page.getByRole("button", { name: "Crear cliente" }).click();
-  await expect(page.getByRole("heading", { name: /E2E Cliente/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Cliente Prueba/ })).toBeVisible();
 
   await page.goto("/vehiculos/nuevo");
   await page.getByRole("textbox", { name: "VIN" }).fill(vin);
