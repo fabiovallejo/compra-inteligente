@@ -1,7 +1,15 @@
 import Decimal from "decimal.js";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PrintButton } from "@/components/print-button";
 import { prisma } from "@/lib/prisma";
+import { updateSimulationStatusAction } from "@/modules/simulations/actions";
+import {
+  formatMoney,
+  formatPercent,
+  periodLabel,
+  simulationStatusLabel,
+} from "@/modules/simulations/format";
 import { simulationSchema } from "@/modules/simulations/validation";
 
 export default async function SimulationDetailPage({
@@ -18,15 +26,11 @@ export default async function SimulationDetailPage({
       financialProduct: true,
       gracePeriods: { orderBy: { periodFrom: "asc" } },
       financialIndicator: true,
-      paymentScheduleItems: {
-        orderBy: { periodNumber: "asc" },
-      },
+      paymentScheduleItems: { orderBy: { periodNumber: "asc" } },
     },
   });
 
-  if (!simulation || !simulation.financialIndicator) {
-    notFound();
-  }
+  if (!simulation || !simulation.financialIndicator) notFound();
 
   const parsedSnapshot = simulationSchema.safeParse(simulation.inputSnapshot);
   const monthlyIncome = parsedSnapshot.success
@@ -59,17 +63,62 @@ export default async function SimulationDetailPage({
             Resultados de simulacion
           </h1>
           <p className="mt-1 text-sm text-[#66727c]">
-            {simulation.client.firstNames} {simulation.client.lastNames} ·{" "}
+            {simulation.client.firstNames} {simulation.client.lastNames} -{" "}
             {simulation.vehicle.brand} {simulation.vehicle.model}
           </p>
+          <p className="mt-1 text-sm font-semibold text-[#1f5f57]">
+            Estado: {simulationStatusLabel(simulation.status)}
+          </p>
         </div>
-        <Link
-          className="inline-flex h-10 items-center rounded-md border border-[#1f5f57] px-4 text-sm font-semibold text-[#1f5f57]"
-          href={`/simulaciones/${simulation.id}/editar`}
-        >
-          Editar y recalcular
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            className="inline-flex h-10 items-center rounded-md border border-[#1f5f57] px-4 text-sm font-semibold text-[#1f5f57]"
+            href={`/simulaciones/${simulation.id}/editar`}
+          >
+            Editar y recalcular
+          </Link>
+          <Link
+            className="inline-flex h-10 items-center rounded-md border border-[#c9c7bd] px-4 text-sm font-semibold"
+            href={`/simulaciones/${simulation.id}/export/csv`}
+          >
+            Exportar CSV
+          </Link>
+          <Link
+            className="inline-flex h-10 items-center rounded-md border border-[#c9c7bd] px-4 text-sm font-semibold"
+            href={`/simulaciones/${simulation.id}/export/pdf`}
+          >
+            Exportar PDF
+          </Link>
+          <PrintButton />
+        </div>
       </div>
+
+      <form
+        action={updateSimulationStatusAction}
+        className="flex flex-col gap-3 rounded-md border border-[#d6d3c8] bg-white p-4 sm:flex-row sm:items-center"
+      >
+        <input name="id" type="hidden" value={simulation.id} />
+        <label className="text-sm font-semibold" htmlFor="status">
+          Estado de la simulacion
+        </label>
+        <select
+          className="h-10 rounded-md border border-[#c9c7bd] px-3 text-sm"
+          defaultValue={simulation.status}
+          id="status"
+          name="status"
+        >
+          <option value="BORRADOR">Borrador</option>
+          <option value="CALCULADA">Calculada</option>
+          <option value="APROBADA">Aprobada</option>
+          <option value="ARCHIVADA">Archivada</option>
+        </select>
+        <button
+          className="h-10 rounded-md bg-[#1f5f57] px-4 text-sm font-semibold text-white"
+          type="submit"
+        >
+          Guardar estado
+        </button>
+      </form>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <ResultCard
@@ -112,26 +161,29 @@ export default async function SimulationDetailPage({
           label="TCEA"
           value={formatPercent(simulation.financialIndicator.tcea)}
         />
-        <ResultCard label="Ratio endeudamiento" value={`${debtRatio.toFixed(2)}%`} />
+        <ResultCard
+          label="Ratio endeudamiento"
+          value={`${debtRatio.toFixed(2)}%`}
+        />
         <ResultCard
           label="Saldo final"
-          value={formatMoney(finalBalance, currency)}
           tone={finalBalance.abs().lt("0.000001") ? "ok" : "warn"}
+          value={formatMoney(finalBalance, currency)}
         />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <InterpretationCard
-          title="VAN"
           text={interpretVan(simulation.financialIndicator.netPresentValue)}
+          title="VAN"
         />
         <InterpretationCard
-          title="TIR"
           text={interpretIrr(simulation.financialIndicator.monthlyIrr)}
+          title="TIR"
         />
         <InterpretationCard
-          title="TCEA"
           text={interpretTcea(simulation.financialIndicator.tcea)}
+          title="TCEA"
         />
       </div>
 
@@ -140,7 +192,10 @@ export default async function SimulationDetailPage({
           <h2 className="text-lg font-semibold">Flujo de caja del deudor</h2>
         </div>
         <div className="grid gap-2 p-4 sm:grid-cols-2 lg:grid-cols-4">
-          <FlowPill period="0" value={formatMoney(simulation.financedAmount, currency)} />
+          <FlowPill
+            period="0"
+            value={formatMoney(simulation.financedAmount, currency)}
+          />
           {simulation.paymentScheduleItems.map((item) => (
             <FlowPill
               key={item.id}
@@ -192,7 +247,9 @@ export default async function SimulationDetailPage({
                     <td className="px-4 py-3">
                       {formatMoney(item.openingBalance, currency)}
                     </td>
-                    <td className="px-4 py-3">{formatMoney(item.interest, currency)}</td>
+                    <td className="px-4 py-3">
+                      {formatMoney(item.interest, currency)}
+                    </td>
                     <td className="px-4 py-3">
                       {formatMoney(item.basePayment, currency)}
                     </td>
@@ -208,7 +265,9 @@ export default async function SimulationDetailPage({
                     <td className="px-4 py-3">
                       {formatMoney(item.commission, currency)}
                     </td>
-                    <td className="px-4 py-3">{formatMoney(item.itf, currency)}</td>
+                    <td className="px-4 py-3">
+                      {formatMoney(item.itf, currency)}
+                    </td>
                     <td
                       className={`px-4 py-3 ${
                         item.balloonPayment.gt(0)
@@ -282,19 +341,6 @@ function FlowPill({ period, value }: { period: string; value: string }) {
   );
 }
 
-function formatMoney(value: Decimal.Value, currency: "PEN" | "USD") {
-  return new Intl.NumberFormat("es-PE", {
-    currency,
-    maximumFractionDigits: 2,
-    minimumFractionDigits: 2,
-    style: "currency",
-  }).format(new Decimal(value).toNumber());
-}
-
-function formatPercent(value: Decimal.Value) {
-  return `${new Decimal(value).mul(100).toFixed(6)}%`;
-}
-
 function periodRowClass(periodType: string) {
   if (periodType === "TOTAL_GRACE") {
     return "border-t border-[#d7e7d8] bg-[#f2faf3]";
@@ -305,12 +351,6 @@ function periodRowClass(periodType: string) {
   }
 
   return "border-t border-[#ebe8df] bg-white";
-}
-
-function periodLabel(periodType: string) {
-  if (periodType === "TOTAL_GRACE") return "Gracia total";
-  if (periodType === "PARTIAL_GRACE") return "Gracia parcial";
-  return "Normal";
 }
 
 function interpretVan(value: Decimal.Value) {

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { SimulationStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireCurrentUser } from "@/server/auth/session";
 import { persistSimulationCalculation } from "./persistence";
@@ -9,6 +10,36 @@ import { simulationSchema } from "./validation";
 
 export interface SaveSimulationState {
   message?: string;
+}
+
+export async function updateSimulationStatusAction(formData: FormData) {
+  const user = await requireCurrentUser();
+  const simulationId = String(formData.get("id") ?? "");
+  const status = String(formData.get("status") ?? "");
+
+  if (!simulationId || !isSimulationStatus(status)) return;
+
+  const simulation = await prisma.creditSimulation.update({
+    where: { id: simulationId },
+    data: { status },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      userId: user.id,
+      action: "STATUS_CHANGE",
+      entity: "CreditSimulation",
+      recordId: simulation.id,
+      detail: { status },
+    },
+  });
+
+  revalidatePath("/simulaciones");
+  revalidatePath(`/simulaciones/${simulation.id}`);
+}
+
+function isSimulationStatus(value: string): value is SimulationStatus {
+  return ["BORRADOR", "CALCULADA", "APROBADA", "ARCHIVADA"].includes(value);
 }
 
 export async function saveSimulationAction(

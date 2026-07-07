@@ -64,10 +64,10 @@ enum CostCalculationBase {
 }
 
 enum SimulationStatus {
-  DRAFT
-  CALCULATED
-  APPROVED
-  ARCHIVED
+  BORRADOR
+  CALCULADA
+  APROBADA
+  ARCHIVADA
 }
 
 enum GracePeriodType {
@@ -202,7 +202,7 @@ model CreditSimulation {
   financedAmount                 Decimal               @db.Decimal(18, 8)
   balloonPayment                 Decimal               @db.Decimal(18, 8)
   basePayment                    Decimal               @db.Decimal(18, 8)
-  status                         SimulationStatus      @default(CALCULATED)
+  status                         SimulationStatus      @default(CALCULADA)
   simulatedAt                    DateTime              @default(now())
   createdAt                      DateTime              @default(now())
   updatedAt                      DateTime              @updatedAt
