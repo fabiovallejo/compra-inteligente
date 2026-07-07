@@ -37,6 +37,11 @@ enum VehicleStatus {
   INACTIVE
 }
 
+enum VehicleCondition {
+  NUEVO
+  SEMINUEVO
+}
+
 enum FinancialProductCostType {
   DEBT_RELIEF_INSURANCE
   VEHICLE_INSURANCE
@@ -117,11 +122,13 @@ model Client {
   occupation     String?
   monthlyIncome  Decimal            @db.Decimal(18, 8)
   incomeCurrency Currency
+  active         Boolean            @default(true)
   simulations    CreditSimulation[]
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 
   @@index([email])
+  @@index([active])
   @@index([lastNames, firstNames])
 }
 
@@ -133,7 +140,7 @@ model Vehicle {
   year        Int
   color       String?
   type        String?
-  condition   String?
+  condition   VehicleCondition
   price       Decimal            @db.Decimal(18, 8)
   currency    Currency
   status      VehicleStatus      @default(AVAILABLE)
