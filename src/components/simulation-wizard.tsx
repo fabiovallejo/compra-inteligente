@@ -14,21 +14,21 @@ import {
 import { simulationToCreditInput } from "@/modules/simulations/mapper";
 import { simulationSchema } from "@/modules/simulations/validation";
 
-interface ClientOption {
+export interface SimulationClientOption {
   id: string;
   label: string;
   monthlyIncome: string;
   incomeCurrency: "PEN" | "USD";
 }
 
-interface VehicleOption {
+export interface SimulationVehicleOption {
   id: string;
   label: string;
   price: string;
   currency: "PEN" | "USD";
 }
 
-interface ProductOption {
+export interface SimulationProductOption {
   id: string;
   label: string;
   currency: "PEN" | "USD";
@@ -45,7 +45,7 @@ interface ProductOption {
   itfRate: string;
 }
 
-interface WizardForm {
+export interface WizardForm {
   clientId: string;
   vehicleId: string;
   financialProductId: string;
@@ -84,12 +84,16 @@ const saveInitialState: SaveSimulationState = {};
 
 export function SimulationWizard({
   clients,
+  initialValues,
   products,
+  simulationId,
   vehicles,
 }: {
-  clients: ClientOption[];
-  products: ProductOption[];
-  vehicles: VehicleOption[];
+  clients: SimulationClientOption[];
+  initialValues?: Partial<WizardForm>;
+  products: SimulationProductOption[];
+  simulationId?: string;
+  vehicles: SimulationVehicleOption[];
 }) {
   const [saveState, saveAction, pendingSave] = useActionState(
     saveSimulationAction,
@@ -127,6 +131,7 @@ export function SimulationWizard({
       itfRate: product?.itfRate ?? "0.005",
       annualDiscountRate: product?.cok ?? "10",
       clientMonthlyIncome: client?.monthlyIncome ?? "0",
+      ...initialValues,
     };
   });
 
@@ -565,6 +570,9 @@ export function SimulationWizard({
               {saveState.message}
             </p>
           ) : null}
+          {simulationId ? (
+            <input name="simulationId" type="hidden" value={simulationId} />
+          ) : null}
           <input name="payload" type="hidden" value={payload} />
           <h2 className="text-lg font-semibold">Vista previa calculada</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -582,7 +590,11 @@ export function SimulationWizard({
             disabled={pendingSave}
             type="submit"
           >
-            {pendingSave ? "Guardando..." : "Guardar simulacion"}
+            {pendingSave
+              ? "Guardando..."
+              : simulationId
+                ? "Guardar recalculo"
+                : "Guardar simulacion"}
           </button>
         </form>
       ) : null}
