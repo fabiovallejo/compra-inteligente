@@ -1,0 +1,161 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Currency {
+  PEN
+  USD
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum RateType {
+  EFFECTIVE_ANNUAL
+  NOMINAL_ANNUAL
+}
+
+enum GracePeriodType {
+  TOTAL
+  PARTIAL
+}
+
+enum PaymentPeriodType {
+  NORMAL
+  TOTAL_GRACE
+  PARTIAL_GRACE
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  role         UserRole @default(USER)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Client {
+  id            String   @id @default(cuid())
+  firstName     String
+  lastName      String
+  documentId    String   @unique
+  email         String   @unique
+  phone         String?
+  address       String?
+  occupation    String?
+  monthlyIncome Decimal? @db.Decimal(14, 2)
+  birthDate     DateTime?
+  credits       Credit[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Vehicle {
+  id        String   @id @default(cuid())
+  brand     String
+  model     String
+  year      Int
+  color     String?
+  type      String?
+  vin       String?  @unique
+  condition String?
+  currency  Currency
+  price     Decimal  @db.Decimal(14, 2)
+  credits   Credit[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FinancialConfiguration {
+  id                     String   @id @default(cuid())
+  rateType               RateType
+  capitalizationPerYear  Int?
+  paymentFrequencyMonths Int      @default(1)
+  annualDiscountRate     Decimal  @db.Decimal(10, 6)
+  defaultBalloonRate     Decimal  @default(0.5) @db.Decimal(10, 6)
+  credits                Credit[]
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+model Credit {
+  id                       String                 @id @default(cuid())
+  clientId                 String
+  vehicleId                String
+  financialConfigurationId String
+  currency                 Currency
+  vehiclePrice             Decimal                @db.Decimal(14, 2)
+  downPayment              Decimal                @db.Decimal(14, 2)
+  financedAmount           Decimal                @db.Decimal(14, 2)
+  balloonRate              Decimal                @db.Decimal(10, 6)
+  balloonAmount            Decimal                @db.Decimal(14, 2)
+  annualRate               Decimal                @db.Decimal(10, 6)
+  monthlyEffectiveRate     Decimal                @db.Decimal(10, 6)
+  termMonths               Int
+  debtReliefInsuranceRate  Decimal                @db.Decimal(10, 6)
+  vehicleInsuranceRate     Decimal                @db.Decimal(10, 6)
+  periodicCommission       Decimal                @db.Decimal(14, 2)
+  itfRate                  Decimal                @db.Decimal(10, 6)
+  gracePeriods             GracePeriod[]
+  schedule                 PaymentScheduleEntry[]
+  indicators               FinancialIndicators?
+  client                   Client                 @relation(fields: [clientId], references: [id])
+  vehicle                  Vehicle                @relation(fields: [vehicleId], references: [id])
+  financialConfiguration   FinancialConfiguration @relation(fields: [financialConfigurationId], references: [id])
+  createdAt                DateTime               @default(now())
+  updatedAt                DateTime               @updatedAt
+}
+
+model GracePeriod {
+  id          String          @id @default(cuid())
+  creditId    String
+  type        GracePeriodType
+  startPeriod Int
+  endPeriod   Int
+  credit      Credit          @relation(fields: [creditId], references: [id], onDelete: Cascade)
+}
+
+model PaymentScheduleEntry {
+  id                    String            @id @default(cuid())
+  creditId              String
+  periodNumber          Int
+  dueDate               DateTime?
+  periodType            PaymentPeriodType
+  openingBalance        Decimal           @db.Decimal(14, 2)
+  interest              Decimal           @db.Decimal(14, 2)
+  basePayment           Decimal           @db.Decimal(14, 2)
+  amortization          Decimal           @db.Decimal(14, 2)
+  balloonPayment        Decimal           @db.Decimal(14, 2)
+  debtReliefInsurance   Decimal           @db.Decimal(14, 2)
+  vehicleInsurance      Decimal           @db.Decimal(14, 2)
+  commission            Decimal           @db.Decimal(14, 2)
+  itf                   Decimal           @db.Decimal(14, 2)
+  totalPayment          Decimal           @db.Decimal(14, 2)
+  closingBalance        Decimal           @db.Decimal(14, 2)
+  debtorCashFlow        Decimal           @db.Decimal(14, 2)
+  credit                Credit            @relation(fields: [creditId], references: [id], onDelete: Cascade)
+
+  @@unique([creditId, periodNumber])
+}
+
+model FinancialIndicators {
+  id             String   @id @default(cuid())
+  creditId       String   @unique
+  netPresentValue Decimal  @db.Decimal(14, 2)
+  monthlyIrr      Decimal  @db.Decimal(10, 6)
+  annualIrr       Decimal  @db.Decimal(10, 6)
+  tcea            Decimal  @db.Decimal(10, 6)
+  totalInterest   Decimal  @db.Decimal(14, 2)
+  totalCost       Decimal  @db.Decimal(14, 2)
+  credit          Credit   @relation(fields: [creditId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+}
